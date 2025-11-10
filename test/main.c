@@ -1,21 +1,22 @@
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
+#define ENABLE_TRACER
 #include "tracer.h"
 
 int main(void) {
-    TracerHandle *tracer = tracer_create(1);
-    tracer_region_begin(tracer, 0, "global region", "t1");
-    tracer_local_region(tracer, "local region", "t1")
+    TracerHandle *tracer = TRACER_CREATE(1);
+    TRACER_REGION_BEGIN(tracer, 0, "global region", "t1");
+    TRACER_LOCAL_REGION(tracer, "local region", "t2")
     {
-        tracer_timer_start(sleep);
+        TRACER_ADD_EV(tracer, "group2", "t1");
+        TRACER_REGION_END(tracer, 0, "global region", "t1");
+        TRACER_TIMER_START(sleep);
         sleep(1);
-        tracer_timer_end(sleep);
-        tracer_add_dur(tracer, begin_sleep, end_sleep, "sleep", "t1");
-        tracer_add_ev(tracer, "group2", "t1");
+        TRACER_TIMER_END(sleep);
+        TRACER_ADD_DUR(tracer, begin_sleep, end_sleep, "sleep", "t3");
     }
-    tracer_region_end(tracer, 0, "global region", "t1");
-    tracer_data_write(&tracer->data, "test.tr");
-    tracer_destroy(tracer);
+    TRACER_WRITE(tracer, "test.tr");
+    TRACER_DESTROY(tracer);
     return 0;
 }
