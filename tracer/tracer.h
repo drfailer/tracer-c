@@ -6,6 +6,13 @@
 #include <stdarg.h>
 #include "array.h"
 
+/*
+ * Size of the temporary buffer used to create the info string
+ */
+#ifndef MAX_INFO_STR_SIZE
+#define MAX_INFO_STR_SIZE 1024
+#endif
+
 /******************************************************************************/
 /*                                   types                                    */
 /******************************************************************************/

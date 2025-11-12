@@ -31,13 +31,14 @@ void tracer_destroy(TracerHandle *tracer)
 
 void tracer_v_add_trace(TracerHandle *tracer, TracerTimestamp begin, TracerTimestamp end, char *group, char *timeline, char *infos, va_list list)
 {
+    char info_str[MAX_INFO_STR_SIZE] = {0};
+
+    vsnprintf(info_str, MAX_INFO_STR_SIZE, infos, list);
     if (begin == end) {
-        fprintf(tracer->file, "ev;%lld;%s;%s;", begin, group, timeline);
+        fprintf(tracer->file, "ev;%lld;%s;%s;%s\n", begin, group, timeline, info_str);
     } else {
-        fprintf(tracer->file, "dur;%lld,%lld;%s;%s;", begin, end, group, timeline);
+        fprintf(tracer->file, "dur;%lld,%lld;%s;%s;%s\n", begin, end, group, timeline, info_str);
     }
-    vfprintf(tracer->file, infos, list);
-    fprintf(tracer->file, "\n");
 }
 
 void tracer_add_trace(TracerHandle *tracer, TracerTimestamp begin, TracerTimestamp end, char *group, char *timeline)
