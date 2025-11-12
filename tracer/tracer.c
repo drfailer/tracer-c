@@ -8,23 +8,53 @@
 /******************************************************************************/
 
 
-TracerHandle *tracer_create(size_t nb_global_regions)
+TracerHandle *tracer_create(char *filename, size_t nb_global_regions)
 {
     TracerHandle *tracer = malloc(sizeof(*tracer));
     memset(tracer, 0, sizeof(*tracer));
-    tracer->data = tracer_data_create();
-    tracer->start = tracer_tp_get();
+
+    tracer->file = fopen(filename, "w+");
+    assert(tracer->file != NULL);
     if (nb_global_regions > 0) {
         array_create(tracer->global_regions, nb_global_regions);
     }
+    tracer->start = tracer_tp_get();
     return tracer;
 }
 
 void tracer_destroy(TracerHandle *tracer)
 {
-    tracer_data_destroy(&tracer->data);
+    fclose(tracer->file);
     array_destroy(tracer->global_regions);
     free(tracer);
+}
+
+void tracer_v_add_trace(TracerHandle *tracer, TracerTimestamp begin, TracerTimestamp end, char *group, char *timeline, char *infos, va_list list)
+{
+    if (begin == end) {
+        fprintf(tracer->file, "ev;%lld;%s;%s;", begin, group, timeline);
+    } else {
+        fprintf(tracer->file, "dur;%lld,%lld;%s;%s;", begin, end, group, timeline);
+    }
+    vfprintf(tracer->file, infos, list);
+    fprintf(tracer->file, "\n");
+}
+
+void tracer_add_trace(TracerHandle *tracer, TracerTimestamp begin, TracerTimestamp end, char *group, char *timeline)
+{
+    if (begin == end) {
+        fprintf(tracer->file, "ev;%lld;%s;%s\n", begin, group, timeline);
+    } else {
+        fprintf(tracer->file, "dur;%lld,%lld;%s;%s\n", begin, end, group, timeline);
+    }
+}
+
+void tracer_add_trace_with_info(TracerHandle *tracer, TracerTimestamp begin, TracerTimestamp end, char *group, char *timeline, char *infos, ...)
+{
+    va_list list;
+    va_start(list, infos);
+    tracer_v_add_trace(tracer, begin, end, group, timeline, infos, list);
+    va_end(list);
 }
 
 TracerTimePoint tracer_tp_get()
@@ -55,66 +85,42 @@ void tracer_add_ev(TracerHandle *tracer, char *group, char *timeline)
 {
     TracerTimePoint time_point = tracer_tp_diff(tracer->start, tracer_tp_get());
     TracerTimestamp ts = tracer_timestamp_from_timepoint(time_point);
-    tracer_data_add_trace(&tracer->data, ts, ts, group, timeline);
+    tracer_add_trace(tracer, ts, ts, group, timeline);
+}
+
+void tracer_add_ev_with_infos(TracerHandle *tracer, char *group, char *timeline, char *infos, ...)
+{
+    va_list list;
+    TracerTimePoint time_point = tracer_tp_diff(tracer->start, tracer_tp_get());
+    TracerTimestamp ts = tracer_timestamp_from_timepoint(time_point);
+
+    va_start(list, infos);
+    tracer_v_add_trace(tracer, ts, ts, group, timeline, infos, list);
+    va_end(list);
+}
+
+void tracer_v_add_dur(TracerHandle *tracer, TracerTimePoint begin, TracerTimePoint end, char *group, char *timeline, char *infos, va_list list)
+{
+    TracerTimePoint begin_tp = tracer_tp_diff(tracer->start, begin);
+    TracerTimePoint end_tp = tracer_tp_diff(tracer->start, end);
+    tracer_v_add_trace(tracer, tracer_timestamp_from_timepoint(begin_tp),
+                     tracer_timestamp_from_timepoint(end_tp), group, timeline, infos, list);
 }
 
 void tracer_add_dur(TracerHandle *tracer, TracerTimePoint begin, TracerTimePoint end, char *group, char *timeline)
 {
     TracerTimePoint begin_tp = tracer_tp_diff(tracer->start, begin);
     TracerTimePoint end_tp = tracer_tp_diff(tracer->start, end);
-    tracer_data_add_trace(&tracer->data, tracer_timestamp_from_timepoint(begin_tp),
-                          tracer_timestamp_from_timepoint(end_tp), group, timeline);
+    tracer_add_trace(tracer, tracer_timestamp_from_timepoint(begin_tp),
+                     tracer_timestamp_from_timepoint(end_tp), group, timeline);
 }
 
-/******************************************************************************/
-/*                                tracer data                                 */
-/******************************************************************************/
-
-TracerData tracer_data_create()
+void tracer_add_dur_with_infos(TracerHandle *tracer, TracerTimePoint begin, TracerTimePoint end, char *group, char *timeline, char *infos, ...)
 {
-    TracerData data = {0};
-    array_create(data.traces, 64);
-    return data;
-}
-
-void tracer_data_destroy(TracerData *data)
-{
-    for (size_t t = 0; t < data->traces.len; ++t) {
-        free(data->traces.ptr[t].group);
-        free(data->traces.ptr[t].timeline);
-    }
-    array_destroy(data->traces);
-}
-
-void tracer_data_add_trace(TracerData *data, TracerTimestamp begin, TracerTimestamp end, char *group, char *timeline)
-{
-    Trace trace = {
-        .begin = begin,
-        .end = end,
-        .group = strdup(group),
-        .timeline = strdup(timeline),
-    };
-    array_append(data->traces, trace);
-}
-
-void tracer_data_write(TracerData const *data, char const *filename)
-{
-    FILE *file = fopen(filename, "w+");
-    if (file == NULL) {
-        fprintf(stderr, "error: cannot open file '%s'.\n", filename);
-        return;
-    }
-
-    for (size_t t = 0; t < data->traces.len; ++t) {
-        Trace *trace = &data->traces.ptr[t];
-        if (trace->begin == trace->end) {
-            fprintf(file, "ev;%lld;%s;%s\n", trace->begin, trace->group, trace->timeline);
-        } else {
-            fprintf(file, "dur;%lld,%lld;%s;%s\n", trace->begin, trace->end, trace->group, trace->timeline);
-        }
-    }
-
-    fclose(file);
+    va_list list;
+    va_start(list, infos);
+    tracer_v_add_dur(tracer, begin, end, group, timeline, infos, list);
+    va_end(list);
 }
 
 /******************************************************************************/
@@ -132,9 +138,16 @@ TracerLocalRegion tracer_local_region_begin(TracerHandle *tracer, char *group, c
     };
 }
 
-void tracer_local_region_end(TracerLocalRegion *tr)
+void tracer_local_region_end(TracerLocalRegion *tr, bool has_infos, char *infos, ...)
 {
-    tracer_add_dur(tr->tracer, tr->begin, tracer_tp_get(), tr->group, tr->timeline);
+    if (has_infos) {
+        va_list list;
+        va_start(list, infos);
+        tracer_v_add_dur(tr->tracer, tr->begin, tracer_tp_get(), tr->group, tr->timeline, infos, list);
+        va_end(list);
+    } else {
+        tracer_add_dur(tr->tracer, tr->begin, tracer_tp_get(), tr->group, tr->timeline);
+    }
     tr->done = true;
 }
 
@@ -162,4 +175,20 @@ void tracer_region_end(TracerHandle *tracer, size_t idx, char *group, char *time
     assert(strcmp(tracer->global_regions.ptr[idx].group, group) == 0);
     assert(strcmp(tracer->global_regions.ptr[idx].timeline, timeline) == 0);
     tracer_add_dur(tracer, tracer->global_regions.ptr[idx].begin, end, group, timeline);
+}
+
+void tracer_region_end_with_infos(TracerHandle *tracer, size_t idx, char *group, char *timeline, char *infos, ...)
+{
+    va_list list;
+    TracerTimePoint end = tracer_tp_get();
+
+    if (idx > tracer->global_regions.len) {
+        fprintf(stderr, "error: global region index `%ld` too high.\n", idx);
+        return;
+    }
+    assert(strcmp(tracer->global_regions.ptr[idx].group, group) == 0);
+    assert(strcmp(tracer->global_regions.ptr[idx].timeline, timeline) == 0);
+    va_start(list, infos);
+    tracer_v_add_dur(tracer, tracer->global_regions.ptr[idx].begin, end, group, timeline, infos, list);
+    va_end(list);
 }
