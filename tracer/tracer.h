@@ -32,6 +32,7 @@ Array(TracerRegion) TracerRegions;
 typedef struct {
     TracerTimePoint start;
     TracerRegions global_regions;
+    bool enabled;
     FILE *file;
 } TracerHandle;
 

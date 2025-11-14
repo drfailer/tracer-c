@@ -19,6 +19,7 @@ TracerHandle *tracer_create(char *filename, size_t nb_global_regions)
         array_create(tracer->global_regions, nb_global_regions);
     }
     tracer->start = tracer_tp_get();
+    tracer->enabled = true;
     return tracer;
 }
 
@@ -33,6 +34,10 @@ void tracer_v_add_trace(TracerHandle *tracer, TracerTimestamp begin, TracerTimes
 {
     char info_str[MAX_INFO_STR_SIZE] = {0};
 
+    if (!tracer->enabled) {
+        return;
+    }
+
     vsnprintf(info_str, MAX_INFO_STR_SIZE, infos, list);
     if (begin == end) {
         fprintf(tracer->file, "ev;%lld;%s;%s;%s\n", begin, group, timeline, info_str);
@@ -43,6 +48,10 @@ void tracer_v_add_trace(TracerHandle *tracer, TracerTimestamp begin, TracerTimes
 
 void tracer_add_trace(TracerHandle *tracer, TracerTimestamp begin, TracerTimestamp end, char *group, char *timeline)
 {
+    if (!tracer->enabled) {
+        return;
+    }
+
     if (begin == end) {
         fprintf(tracer->file, "ev;%lld;%s;%s\n", begin, group, timeline);
     } else {
