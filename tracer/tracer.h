@@ -106,7 +106,7 @@ void tracer_region_end_with_infos(TracerHandle *tracer, size_t idx, char *group,
 #define TRACER_REGION_BEGIN(tracer, idx, group, timeline) tracer_region_begin(tracer, idx, group, timeline)
 #define TRACER_REGION_END(tracer, idx, group, timeline, ...)                                  \
     do {                                                                                      \
-        if (sizeof(#__VA_ARGS__) > 0) {                                                       \
+        if (sizeof(#__VA_ARGS__) > 1) {                                                       \
             tracer_region_end_with_infos(tracer, idx, group, timeline, "" __VA_ARGS__);       \
         } else {                                                                              \
             tracer_region_end(tracer, idx, group, timeline);                                  \
@@ -120,6 +120,9 @@ void tracer_region_end_with_infos(TracerHandle *tracer, size_t idx, char *group,
 
 #define TRACER_CREATE(filename, nb_global_regions) tracer_create(filename, nb_global_regions)
 #define TRACER_DESTROY(tracer) tracer_destroy(tracer)
+
+#define TRACER_ENABLE(tracer) tracer->enabled = true
+#define TRACER_DISABLE(tracer) tracer->enabled = false
 
 #else // ENABLE_TRACER
 
@@ -137,6 +140,9 @@ void tracer_region_end_with_infos(TracerHandle *tracer, size_t idx, char *group,
 
 #define TRACER_CREATE(filename, nb_global_regions) NULL
 #define TRACER_DESTROY(tracer)
+
+#define TRACER_ENABLE(tracer)
+#define TRACER_DISABLE(tracer)
 
 #endif // ENABLE_TRACER
 
