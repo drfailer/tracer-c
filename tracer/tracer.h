@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "array.h"
+#include <threads.h>
 
 /*
  * Size of the temporary buffer used to create the info string
@@ -34,6 +35,7 @@ typedef struct {
     TracerRegions global_regions;
     bool enabled;
     FILE *file;
+    mtx_t mutex;
 } TracerHandle;
 
 /******************************************************************************/
