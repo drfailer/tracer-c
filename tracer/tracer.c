@@ -84,11 +84,40 @@ void tracer_add_trace(TracerHandle *tracer, TracerTimestamp begin, TracerTimesta
         return;
     }
 
+    size_t group_len = strlen(group);
+    size_t timeline_len = strlen(timeline);
+    size_t infos_len = 0;
+
+    mtx_lock(&tracer->mutex);
     if (begin == end) {
-        fprintf(tracer->file, "ev;%lld;%s;%s\n", begin, group, timeline);
+        // sym
+        fprintf(tracer->file, "EV::");
+        // tp
+        fwrite(&begin, sizeof(begin), 1, tracer->file);
+        // group
+        fwrite(&group_len, sizeof(group_len), 1, tracer->file);
+        fwrite(group, sizeof(*group), group_len, tracer->file);
+        // timeline
+        fwrite(&timeline_len, sizeof(timeline_len), 1, tracer->file);
+        fwrite(timeline, sizeof(*timeline), timeline_len, tracer->file);
+        // infos
+        fwrite(&infos_len, sizeof(infos_len), 1, tracer->file);
     } else {
-        fprintf(tracer->file, "du;%lld,%lld;%s;%s\n", begin, end, group, timeline);
+        // sym
+        fprintf(tracer->file, "DU::");
+        // tps
+        fwrite(&begin, sizeof(begin), 1, tracer->file);
+        fwrite(&end, sizeof(end), 1, tracer->file);
+        // group
+        fwrite(&group_len, sizeof(group_len), 1, tracer->file);
+        fwrite(group, sizeof(*group), group_len, tracer->file);
+        // timeline
+        fwrite(&timeline_len, sizeof(timeline_len), 1, tracer->file);
+        fwrite(timeline, sizeof(*timeline), timeline_len, tracer->file);
+        // infos
+        fwrite(&infos_len, sizeof(infos_len), 1, tracer->file);
     }
+    mtx_unlock(&tracer->mutex);
 }
 
 void tracer_add_trace_with_info(TracerHandle *tracer, TracerTimestamp begin, TracerTimestamp end, char *group, char *timeline, char *infos, ...)
