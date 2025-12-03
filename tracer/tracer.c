@@ -223,15 +223,17 @@ TracerLocalRegion tracer_local_region_begin(TracerHandle *tracer, char *group, c
     };
 }
 
-void tracer_local_region_end(TracerLocalRegion *tr, bool has_infos, char *infos, ...)
+void tracer_local_region_end(bool cnd, TracerLocalRegion *tr, bool has_infos, char *infos, ...)
 {
-    if (has_infos) {
-        va_list list;
-        va_start(list, infos);
-        tracer_v_add_dur(tr->tracer, tr->begin, tracer_tp_get(), tr->group, tr->timeline, infos, list);
-        va_end(list);
-    } else {
-        tracer_add_dur(tr->tracer, tr->begin, tracer_tp_get(), tr->group, tr->timeline);
+    if (cnd) {
+        if (has_infos) {
+            va_list list;
+            va_start(list, infos);
+            tracer_v_add_dur(tr->tracer, tr->begin, tracer_tp_get(), tr->group, tr->timeline, infos, list);
+            va_end(list);
+        } else {
+            tracer_add_dur(tr->tracer, tr->begin, tracer_tp_get(), tr->group, tr->timeline);
+        }
     }
     tr->done = true;
 }

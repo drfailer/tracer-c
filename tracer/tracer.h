@@ -78,7 +78,7 @@ typedef struct {
 } TracerLocalRegion;
 
 TracerLocalRegion tracer_local_region_begin(TracerHandle *tracer, char *group, char *timeline);
-void tracer_local_region_end(TracerLocalRegion *tr, bool has_infos, char *infos, ...);
+void tracer_local_region_end(bool cnd, TracerLocalRegion *tr, bool has_infos, char *infos, ...);
 
 void tracer_region_begin(TracerHandle *tracer, size_t idx, char *group, char *timeline);
 void tracer_region_end(TracerHandle *tracer, size_t idx, char *group, char *timeline);
@@ -102,6 +102,12 @@ void tracer_region_end_with_infos(TracerHandle *tracer, size_t idx, char *group,
             tracer_add_ev(tracer, group, timeline);                            \
         }                                                                      \
     } while (false);
+#define TRACER_ADD_EV_CND(cnd, tracer, group, timeline, ...)     \
+    do {                                                         \
+        if (cnd) {                                               \
+            TRACER_ADD_EV(tracer, group, timeline, __VA_ARGS__); \
+        }                                                        \
+    } while (false);
 #define TRACER_ADD_DUR(tracer, tbegin, tend, group, timeline, ...)                            \
     do {                                                                                      \
         if (sizeof(#__VA_ARGS__) > 1) {                                                       \
@@ -110,6 +116,12 @@ void tracer_region_end_with_infos(TracerHandle *tracer, size_t idx, char *group,
             tracer_add_dur(tracer, tbegin, tend, group, timeline);                            \
         }                                                                                     \
     } while (false);
+#define TRACER_ADD_DUR_CND(cnd, tracer, tbegin, tend, group, timeline, ...)     \
+    do {                                                                        \
+        if (cnd) {                                                              \
+            TRACER_ADD_DUR(tracer, tbegin, tend, group, timeline, __VA_ARGS__); \
+        }                                                                       \
+    } while(false);
 
 #define TRACER_REGION_BEGIN(tracer, idx, group, timeline) tracer_region_begin(tracer, idx, group, timeline)
 #define TRACER_REGION_END(tracer, idx, group, timeline, ...)                                  \
@@ -124,7 +136,11 @@ void tracer_region_end_with_infos(TracerHandle *tracer, size_t idx, char *group,
 #define TRACER_LOCAL_REGION(tracer, group, timeline, ...)                           \
     for (TracerLocalRegion tr = tracer_local_region_begin(tracer, group, timeline); \
          !tr.done;                                                                  \
-         tracer_local_region_end(&tr, sizeof(#__VA_ARGS__) > 1, "" __VA_ARGS__))
+         tracer_local_region_end(true, &tr, sizeof(#__VA_ARGS__) > 1, "" __VA_ARGS__))
+#define TRACER_LOCAL_REGION_CND(cnd, tracer, group, timeline, ...)                  \
+    for (TracerLocalRegion tr = tracer_local_region_begin(tracer, group, timeline); \
+         !tr.done;                                                                  \
+         tracer_local_region_end((cnd), &tr, sizeof(#__VA_ARGS__) > 1, "" __VA_ARGS__))
 
 #define TRACER_CREATE(filename, nb_global_regions) tracer_create(filename, nb_global_regions)
 #define TRACER_DESTROY(tracer) tracer_destroy(tracer)
@@ -139,12 +155,15 @@ void tracer_region_end_with_infos(TracerHandle *tracer, size_t idx, char *group,
 #define TRACER_TIMER_DUR(timer_name)
 
 #define TRACER_ADD_EV(tracer, group, timeline, ...)
+#define TRACER_ADD_EV_CND(cnd, tracer, group, timeline, ...)
 #define TRACER_ADD_DUR(tracer, tbegin, tend, group, timeline, ...)
+#define TRACER_ADD_DUR_CND(cnd, tracer, tbegin, tend, group, timeline, ...)
 
 #define TRACER_REGION_BEGIN(tracer, idx, group, timeline)
 #define TRACER_REGION_END(tracer, idx, group, timeline, ...)
 
 #define TRACER_LOCAL_REGION(tracer, group, timeline, ...)
+#define TRACER_LOCAL_REGION_CND(cnd, tracer, group, timeline, ...)
 
 #define TRACER_CREATE(filename, nb_global_regions) NULL
 #define TRACER_DESTROY(tracer)
