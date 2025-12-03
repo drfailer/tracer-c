@@ -15,7 +15,7 @@
 #endif
 
 #ifndef MAX_FILE_SIZE
-#define MAX_FILE_SIZE 1.25e+8 // 1Gb by default
+#define MAX_FILE_SIZE 1e+9 // 1Gb by default
 #endif
 
 /******************************************************************************/
