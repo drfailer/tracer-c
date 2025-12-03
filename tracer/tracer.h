@@ -14,6 +14,10 @@
 #define MAX_INFO_STR_SIZE 1024
 #endif
 
+#ifndef MAX_FILE_SIZE
+#define MAX_FILE_SIZE 1.25e+8 // 1Gb by default
+#endif
+
 /******************************************************************************/
 /*                                   types                                    */
 /******************************************************************************/
@@ -34,8 +38,10 @@ typedef struct {
     TracerTimePoint start;
     TracerRegions global_regions;
     bool enabled;
+    bool stop;
     FILE *file;
     mtx_t mutex;
+    size_t file_size;
 } TracerHandle;
 
 /******************************************************************************/

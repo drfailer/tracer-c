@@ -20,6 +20,8 @@ TracerHandle *tracer_create(char *filename, size_t nb_global_regions)
     }
     tracer->start = tracer_tp_get();
     tracer->enabled = true;
+    tracer->stop = false;
+    tracer->file_size = 0;
     mtx_init(&tracer->mutex, mtx_plain);
     return tracer;
 }
@@ -36,7 +38,13 @@ void tracer_v_add_trace(TracerHandle *tracer, TracerTimestamp begin, TracerTimes
 {
     char infos_str[MAX_INFO_STR_SIZE] = {0};
 
-    if (!tracer->enabled) {
+    if (!tracer->enabled || tracer->stop) {
+        return;
+    }
+
+    if (tracer->file_size >= MAX_FILE_SIZE) {
+        fprintf(stderr, "TRACER  WARN  max file size reached, tracing has been stopped.\n");
+        tracer->stop = true;
         return;
     }
 
@@ -47,40 +55,46 @@ void tracer_v_add_trace(TracerHandle *tracer, TracerTimestamp begin, TracerTimes
     mtx_lock(&tracer->mutex);
     if (begin == end) {
         // sym
-        fprintf(tracer->file, "EV::");
+        tracer->file_size += fprintf(tracer->file, "EV::");
         // tp
-        fwrite(&begin, sizeof(begin), 1, tracer->file);
+        tracer->file_size += fwrite(&begin, sizeof(begin), 1, tracer->file);
         // group
-        fwrite(&group_len, sizeof(group_len), 1, tracer->file);
-        fwrite(group, sizeof(*group), group_len, tracer->file);
+        tracer->file_size += fwrite(&group_len, sizeof(group_len), 1, tracer->file);
+        tracer->file_size += fwrite(group, sizeof(*group), group_len, tracer->file);
         // timeline
-        fwrite(&timeline_len, sizeof(timeline_len), 1, tracer->file);
-        fwrite(timeline, sizeof(*timeline), timeline_len, tracer->file);
+        tracer->file_size += fwrite(&timeline_len, sizeof(timeline_len), 1, tracer->file);
+        tracer->file_size += fwrite(timeline, sizeof(*timeline), timeline_len, tracer->file);
         // infos
-        fwrite(&infos_len, sizeof(infos_len), 1, tracer->file);
-        fwrite(infos_str, sizeof(*infos_str), infos_len, tracer->file);
+        tracer->file_size += fwrite(&infos_len, sizeof(infos_len), 1, tracer->file);
+        tracer->file_size += fwrite(infos_str, sizeof(*infos_str), infos_len, tracer->file);
     } else {
         // sym
-        fprintf(tracer->file, "DU::");
+        tracer->file_size += fprintf(tracer->file, "DU::");
         // tps
-        fwrite(&begin, sizeof(begin), 1, tracer->file);
-        fwrite(&end, sizeof(end), 1, tracer->file);
+        tracer->file_size += fwrite(&begin, sizeof(begin), 1, tracer->file);
+        tracer->file_size += fwrite(&end, sizeof(end), 1, tracer->file);
         // group
-        fwrite(&group_len, sizeof(group_len), 1, tracer->file);
-        fwrite(group, sizeof(*group), group_len, tracer->file);
+        tracer->file_size += fwrite(&group_len, sizeof(group_len), 1, tracer->file);
+        tracer->file_size += fwrite(group, sizeof(*group), group_len, tracer->file);
         // timeline
-        fwrite(&timeline_len, sizeof(timeline_len), 1, tracer->file);
-        fwrite(timeline, sizeof(*timeline), timeline_len, tracer->file);
+        tracer->file_size += fwrite(&timeline_len, sizeof(timeline_len), 1, tracer->file);
+        tracer->file_size += fwrite(timeline, sizeof(*timeline), timeline_len, tracer->file);
         // infos
-        fwrite(&infos_len, sizeof(infos_len), 1, tracer->file);
-        fwrite(infos_str, sizeof(*infos_str), infos_len, tracer->file);
+        tracer->file_size += fwrite(&infos_len, sizeof(infos_len), 1, tracer->file);
+        tracer->file_size += fwrite(infos_str, sizeof(*infos_str), infos_len, tracer->file);
     }
     mtx_unlock(&tracer->mutex);
 }
 
 void tracer_add_trace(TracerHandle *tracer, TracerTimestamp begin, TracerTimestamp end, char *group, char *timeline)
 {
-    if (!tracer->enabled) {
+    if (!tracer->enabled || tracer->stop) {
+        return;
+    }
+
+    if (tracer->file_size >= MAX_FILE_SIZE) {
+        fprintf(stderr, "TRACER  WARN  max file size reached, tracing has been stopped.\n");
+        tracer->stop = true;
         return;
     }
 
@@ -91,31 +105,31 @@ void tracer_add_trace(TracerHandle *tracer, TracerTimestamp begin, TracerTimesta
     mtx_lock(&tracer->mutex);
     if (begin == end) {
         // sym
-        fprintf(tracer->file, "EV::");
+        tracer->file_size += fprintf(tracer->file, "EV::");
         // tp
-        fwrite(&begin, sizeof(begin), 1, tracer->file);
+        tracer->file_size += fwrite(&begin, sizeof(begin), 1, tracer->file);
         // group
-        fwrite(&group_len, sizeof(group_len), 1, tracer->file);
-        fwrite(group, sizeof(*group), group_len, tracer->file);
+        tracer->file_size += fwrite(&group_len, sizeof(group_len), 1, tracer->file);
+        tracer->file_size += fwrite(group, sizeof(*group), group_len, tracer->file);
         // timeline
-        fwrite(&timeline_len, sizeof(timeline_len), 1, tracer->file);
-        fwrite(timeline, sizeof(*timeline), timeline_len, tracer->file);
+        tracer->file_size += fwrite(&timeline_len, sizeof(timeline_len), 1, tracer->file);
+        tracer->file_size += fwrite(timeline, sizeof(*timeline), timeline_len, tracer->file);
         // infos
-        fwrite(&infos_len, sizeof(infos_len), 1, tracer->file);
+        tracer->file_size += fwrite(&infos_len, sizeof(infos_len), 1, tracer->file);
     } else {
         // sym
-        fprintf(tracer->file, "DU::");
+        tracer->file_size += fprintf(tracer->file, "DU::");
         // tps
-        fwrite(&begin, sizeof(begin), 1, tracer->file);
-        fwrite(&end, sizeof(end), 1, tracer->file);
+        tracer->file_size += fwrite(&begin, sizeof(begin), 1, tracer->file);
+        tracer->file_size += fwrite(&end, sizeof(end), 1, tracer->file);
         // group
-        fwrite(&group_len, sizeof(group_len), 1, tracer->file);
-        fwrite(group, sizeof(*group), group_len, tracer->file);
+        tracer->file_size += fwrite(&group_len, sizeof(group_len), 1, tracer->file);
+        tracer->file_size += fwrite(group, sizeof(*group), group_len, tracer->file);
         // timeline
-        fwrite(&timeline_len, sizeof(timeline_len), 1, tracer->file);
-        fwrite(timeline, sizeof(*timeline), timeline_len, tracer->file);
+        tracer->file_size += fwrite(&timeline_len, sizeof(timeline_len), 1, tracer->file);
+        tracer->file_size += fwrite(timeline, sizeof(*timeline), timeline_len, tracer->file);
         // infos
-        fwrite(&infos_len, sizeof(infos_len), 1, tracer->file);
+        tracer->file_size += fwrite(&infos_len, sizeof(infos_len), 1, tracer->file);
     }
     mtx_unlock(&tracer->mutex);
 }
